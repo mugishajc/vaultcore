@@ -2,6 +2,8 @@ package io.github.mugishajc.security;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -47,9 +49,18 @@ class PasswordHasherTest {
     @Test
     void tamperedHashDoesNotVerify() {
         String stored = hasher.hash("pw".toCharArray());
-        char last = stored.charAt(stored.length() - 1);
-        String tampered = stored.substring(0, stored.length() - 1) + (last == 'A' ? 'B' : 'A');
-        assertFalse(hasher.verify("pw".toCharArray(), tampered));
+        assertFalse(hasher.verify("pw".toCharArray(), flipFirstBit(stored, 3)), "hash edited");
+        assertFalse(hasher.verify("pw".toCharArray(), flipFirstBit(stored, 2)), "salt edited");
+    }
+
+    // Decode, flip a bit, re-encode. Editing the Base64 text directly is not
+    // reliable: the last character of unpadded Base64 carries ignored bits.
+    private static String flipFirstBit(String stored, int part) {
+        String[] parts = stored.split("\\$");
+        byte[] bytes = Base64.getDecoder().decode(parts[part]);
+        bytes[0] ^= 0x01;
+        parts[part] = Base64.getEncoder().withoutPadding().encodeToString(bytes);
+        return String.join("$", parts);
     }
 
     @Test
